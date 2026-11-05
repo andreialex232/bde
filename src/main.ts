@@ -32,6 +32,7 @@ export let todos: Todo[] = [];
 const todoInput = document.getElementById('todo-input') as HTMLInputElement; // exist in HTML file
 const todoForm = document.querySelector('.todo-form') as HTMLFormElement;    // exist in HTML file
 const todoList = document.getElementById('todo-list') as HTMLUListElement;   // exist in HTML file
+const errorMessage = document.getElementById('error-message') as HTMLParagraphElement; // exist in HTML file
 
 
 
@@ -82,19 +83,8 @@ renderTodos(); // Call the renderTodos function to display the initial list of t
 
 
 // Step 7: Event listener for the form submission
-// Event listener for the form submission: This listener handles the form submission, adds the new todo, and clears the input field.
-todoForm.addEventListener('submit', (event: Event) => {
-  event.preventDefault(); // Prevent the default form submission behavior
-  const text = todoInput.value.trim(); // Get the value of the input field and remove any leading or trailing whitespace - not needed, but good practice
-  if (text !== '') { // Check if the input field is not empty. Sort of a reverse falsey
-    addTodo(text);
-    todoInput.value = ''; // Clear the input field
-  }
-});
-
-//Improved code for step 7 - user input validation - move the error message to the top of the Typescript file
-const errorMessage = document.getElementById('error-message') as HTMLParagraphElement; // Should be moved to the top + added to the HTML file
-
+// Handles the form submission: validates the input, adds the new todo and clears the input field.
+// (There must be only ONE submit listener: a second one would read the already-cleared input and show the error.)
 todoForm.addEventListener('submit', (event: Event) => {
   event.preventDefault(); // Prevent the default form submission behavior
   const text = todoInput.value.trim(); // Get the value of the input field and remove any leading or trailing whitespace
