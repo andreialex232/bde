@@ -67,10 +67,16 @@ const renderTodos = (): void => { // void because no return - what we are doing 
       <span>${todo.text}</span>
       <button>Remove</button>
          <button id="editBtn">Edit</button>
+      <button class="toggle-btn">${todo.completed ? 'Undo' : 'Done'}</button>
     `;
     // addRemoveButtonListener is further down in the code. We have onclick in the function instead of template literals. More safe to use addEventListener.
     addRemoveButtonListener(li, todo.id); // Add event listener to the remove button. li is the parent element, and todo.id is the ID of the todo. 
     addEditButtonListener(li, todo.id); // Add event listener to the remove button. li is the parent element, and todo.id is the ID of the todo. 
+    addToggleButtonListener(li, todo.id);
+    const label = li.querySelector('span');
+    if (todo.completed && label) {
+      label.style.textDecoration = 'line-through';
+    }
     todoList.appendChild(li); // Append the list item to the ul element
   });
 };
@@ -148,6 +154,19 @@ const editTodo = (id:number) => {
     }
   }
 }
+
+export const toggleTodo = (id: number): void => {
+  const todo = todos.find(todo => todo.id === id);
+  if (todo) {
+    todo.completed = !todo.completed;
+    renderTodos();
+  }
+};
+
+const addToggleButtonListener = (li: HTMLLIElement, id: number): void => {
+  const toggleButton = li.querySelector('.toggle-btn');
+  toggleButton?.addEventListener('click', () => toggleTodo(id));
+};
 
 /**
  * color picker
