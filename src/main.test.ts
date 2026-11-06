@@ -11,6 +11,10 @@ const html = `
   <button id="toggle-all">Toggle all</button>
   <button id="clear-completed">Clear completed</button>
   <button id="clear-all">Clear all</button>
+  <button id="export-todos">Export</button>
+  <button id="import-todos">Import</button>
+  <input type="file" id="import-file" />
+  <p id="import-error" hidden>Invalid todos file</p>
   <input type="color" id="colorPicker" />
 `;
 
@@ -29,6 +33,13 @@ const texts = (): (string | null)[] =>
 
 const click = (selector: string, index = 0): void => {
   document.querySelectorAll<HTMLElement>(selector)[index].click();
+};
+
+const chooseFile = (content: string): void => {
+  const input = document.getElementById('import-file') as HTMLInputElement;
+  const file = new File([content], 'todos.json', { type: 'application/json' });
+  Object.defineProperty(input, 'files', { value: [file], configurable: true });
+  input.dispatchEvent(new Event('change'));
 };
 
 const loadApp = async (): Promise<void> => {
@@ -121,5 +132,32 @@ describe('Todo app', () => {
     expect(texts()).toEqual([]);
     await loadApp();
     expect(texts()).toEqual([]);
+  });
+
+  it('exports the todos as a JSON file', async () => {
+    const createObjectURL = vi.fn((_blob: Blob) => 'blob:todos');
+    URL.createObjectURL = createObjectURL;
+    URL.revokeObjectURL = vi.fn();
+    const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    addViaForm('a');
+    click('#export-todos');
+    const blob = createObjectURL.mock.calls[0][0];
+    expect(JSON.parse(await blob.text())).toEqual(app.todos);
+    expect(anchorClick).toHaveBeenCalledOnce();
+    anchorClick.mockRestore();
+  });
+
+  it('imports todos from a JSON file', async () => {
+    addViaForm('old');
+    chooseFile(JSON.stringify([{ id: 1, text: 'imported', completed: true }]));
+    await vi.waitFor(() => expect(texts()).toEqual(['imported']));
+    expect(app.todos[0].completed).toBe(true);
+  });
+
+  it('rejects an invalid file and keeps the list', async () => {
+    addViaForm('keep');
+    chooseFile('[{"bad":true}]');
+    await vi.waitFor(() => expect(document.getElementById('import-error')!.hidden).toBe(false));
+    expect(texts()).toEqual(['keep']);
   });
 });
