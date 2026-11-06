@@ -33,6 +33,8 @@ const todoInput = document.getElementById('todo-input') as HTMLInputElement; // 
 const todoForm = document.querySelector('.todo-form') as HTMLFormElement;    // exist in HTML file
 const todoList = document.getElementById('todo-list') as HTMLUListElement;   // exist in HTML file
 const errorMessage = document.getElementById('error-message') as HTMLParagraphElement; // exist in HTML file
+const toggleAllButton = document.getElementById('toggle-all') as HTMLButtonElement;
+const clearCompletedButton = document.getElementById('clear-completed') as HTMLButtonElement;
 
 
 
@@ -167,6 +169,22 @@ const addToggleButtonListener = (li: HTMLLIElement, id: number): void => {
   const toggleButton = li.querySelector('.toggle-btn');
   toggleButton?.addEventListener('click', () => toggleTodo(id));
 };
+
+export const clearCompleted = (): void => {
+  todos = todos.filter(todo => !todo.completed);
+  renderTodos();
+};
+
+export const toggleAll = (): void => {
+  const allCompleted = todos.length > 0 && todos.every(todo => todo.completed);
+  todos.forEach(todo => {
+    todo.completed = !allCompleted;
+  });
+  renderTodos();
+};
+
+toggleAllButton.addEventListener('click', toggleAll);
+clearCompletedButton.addEventListener('click', clearCompleted);
 
 /**
  * color picker
