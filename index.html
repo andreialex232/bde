@@ -16,6 +16,13 @@
       <!-- error handling message : CSS added:: .input-error & #error-message -->
       <p id="error-message">Please enter a todo item</p>
       <ul class="todo-list" id="todo-list"></ul>
+      <button id="toggle-all">Toggle all</button>
+      <button id="clear-completed">Clear completed</button>
+      <button id="clear-all">Clear all</button>
+      <button id="export-todos">Export</button>
+      <button id="import-todos">Import</button>
+      <input type="file" id="import-file" accept="application/json" hidden />
+      <p id="import-error" style="color: red" hidden>Invalid todos file</p>
 
       <input type="color" id="colorPicker" />
     </div>

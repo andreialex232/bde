@@ -1,143 +1,172 @@
-/**
- * NOTE to self
- * Make a module and import the functions from the module
- * Seperate the functions into different files
- * Logical grouping of functions - for example, all functions related to adding a todo item can be in one file
- * 
- */
-
-
-/**
- * REDO it. More streqamlined and better structure - 
- */
-
-
-// 1 Import the CSS file: This ensures that the styles are applied to the HTML elements.
+// Import the CSS file so the styles are applied to the HTML elements
 import './style.css';
 
-// Step 2: Define the Todo interface
-// Define the Todo interface: This interface defines the structure of a todo item.
+/**
+ * A single todo item.
+ */
 export interface Todo {
+  /** Unique identifier, created from the timestamp when the todo is added. */
   id: number;
+  /** The text the user typed. */
   text: string;
+  /** Whether the todo has been marked as done. */
   completed: boolean;
 }
 
-// Step 3: Initialize an empty array to store todos
-// Initialize an empty array: This array will store the list of todos.
-export let todos: Todo[] = [];
+/** The localStorage key under which the todos are saved. */
+const STORAGE_KEY = 'todos';
 
-// Step 4: Get references to the HTML elements
-// Get references to the HTML elements: These references will be used to interact with the DOM
-const todoInput = document.getElementById('todo-input') as HTMLInputElement; // exist in HTML file
-const todoForm = document.querySelector('.todo-form') as HTMLFormElement;    // exist in HTML file
-const todoList = document.getElementById('todo-list') as HTMLUListElement;   // exist in HTML file
-const errorMessage = document.getElementById('error-message') as HTMLParagraphElement; // exist in HTML file
+/**
+ * Checks that an unknown value has the shape of a {@link Todo}.
+ * Used to validate data that comes from localStorage or from an imported file.
+ * @param value - The value to check.
+ * @returns True if the value is a valid todo.
+ */
+const isTodo = (value: unknown): value is Todo =>
+  typeof value === 'object' &&
+  value !== null &&
+  typeof (value as Todo).id === 'number' &&
+  typeof (value as Todo).text === 'string' &&
+  typeof (value as Todo).completed === 'boolean';
 
+/**
+ * Reads the saved todos from localStorage.
+ * Invalid entries are dropped, and unreadable data gives an empty list.
+ * @returns The saved todos.
+ */
+const loadTodos = (): Todo[] => {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    const parsed: unknown = saved ? JSON.parse(saved) : [];
+    return Array.isArray(parsed) ? parsed.filter(isTodo) : [];
+  } catch {
+    return [];
+  }
+};
 
+/** The current list of todos, loaded from localStorage when the page opens. */
+export let todos: Todo[] = loadTodos();
 
+/**
+ * Saves the current list of todos to localStorage.
+ * Logs an error instead of throwing if saving fails.
+ */
+const saveTodos = (): void => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
+  } catch {
+    console.error('Could not save todos');
+  }
+};
 
+// References to the HTML elements the app works with (they exist in index.html)
+const todoInput = document.getElementById('todo-input') as HTMLInputElement;
+const todoForm = document.querySelector('.todo-form') as HTMLFormElement;
+const todoList = document.getElementById('todo-list') as HTMLUListElement;
+const errorMessage = document.getElementById('error-message') as HTMLParagraphElement;
+const toggleAllButton = document.getElementById('toggle-all') as HTMLButtonElement;
+const clearCompletedButton = document.getElementById('clear-completed') as HTMLButtonElement;
+const clearAllButton = document.getElementById('clear-all') as HTMLButtonElement;
+const exportButton = document.getElementById('export-todos') as HTMLButtonElement;
+const importButton = document.getElementById('import-todos') as HTMLButtonElement;
+const importFile = document.getElementById('import-file') as HTMLInputElement;
+const importError = document.getElementById('import-error') as HTMLParagraphElement;
 
-
-// Step 5: Function to add a new todo
-// Function to add a new todo: This function creates a new todo object and adds it to the array.
+/**
+ * Adds a new todo to the list and redraws it.
+ * @param text - The text of the new todo.
+ */
 export const addTodo = (text: string): void => {
   const newTodo: Todo = {
-    id: Date.now(), // Generate a unique ID based on the current timestamp
+    id: Date.now(), // Unique ID based on the current timestamp
     text: text,
     completed: false,
   };
   todos.push(newTodo);
-  console.log("Todo added: ", todos); // Log the updated list of todos to the console
-  renderTodos(); // Render the updated list of todos => create the function next
+  console.log("Todo added: ", todos);
+  renderTodos();
 };
 
-// Step 6: Function to render the list of todos
-// Function to render the list of todos: This function updates the DOM to display the current list of todos.
-const renderTodos = (): void => { // void because no return - what we are doing is updating the DOM
-  // Clear the current list
+/**
+ * Saves the todos, then redraws the list in the page.
+ * Each todo gets a Remove, an Edit and a Done/Undo button, and completed todos are struck through.
+ */
+const renderTodos = (): void => {
+  saveTodos();
   todoList.innerHTML = '';
 
-  // Iterate over the todos array and create list items for each todo
-  todos.forEach(todo => { // In this specific case, .forEach is more suitable because we are directly modifying the DOM for each todo item.
+  todos.forEach(todo => {
     const li = document.createElement('li');
-    li.className = 'todo-item'; // Add a class to the list item
-    // Use template literals to create the HTML content for each list item
+    li.className = 'todo-item';
     li.innerHTML = `
       <span>${todo.text}</span>
       <button>Remove</button>
          <button id="editBtn">Edit</button>
+      <button class="toggle-btn">${todo.completed ? 'Undo' : 'Done'}</button>
     `;
-    // addRemoveButtonListener is further down in the code. We have onclick in the function instead of template literals. More safe to use addEventListener.
-    addRemoveButtonListener(li, todo.id); // Add event listener to the remove button. li is the parent element, and todo.id is the ID of the todo. 
-    addEditButtonListener(li, todo.id); // Add event listener to the remove button. li is the parent element, and todo.id is the ID of the todo. 
-    todoList.appendChild(li); // Append the list item to the ul element
+    // The listeners use addEventListener instead of onclick in the template string, which is safer
+    addRemoveButtonListener(li, todo.id);
+    addEditButtonListener(li, todo.id);
+    addToggleButtonListener(li, todo.id);
+    const label = li.querySelector('span');
+    if (todo.completed && label) {
+      label.style.textDecoration = 'line-through';
+    }
+    todoList.appendChild(li);
   });
 };
 
-// Step 6.1: Function to render the list of todos
-// Initial render
-renderTodos(); // Call the renderTodos function to display the initial list of todos : Should be at the end of the code to ensure that the function is defined before it is called.
-// The initial render is important to display the list of todos when the page is first loaded. Without it, the list would be empty until a new todo is added.
-// Move it when code is complete ( refactoring ) 
-
-
-// Step 7: Event listener for the form submission
-// Handles the form submission: validates the input, adds the new todo and clears the input field.
-// (There must be only ONE submit listener: a second one would read the already-cleared input and show the error.)
+// There must be only ONE submit listener: a second one would read the already-cleared input and show the error
 todoForm.addEventListener('submit', (event: Event) => {
-  event.preventDefault(); // Prevent the default form submission behavior
-  const text = todoInput.value.trim(); // Get the value of the input field and remove any leading or trailing whitespace
+  event.preventDefault(); // Prevent the page from reloading
+  const text = todoInput.value.trim();
 
-  if (text !== '') { // Check if the input field is empty
-    todoInput.classList.remove('input-error'); // Remove the error highlight if present
-    errorMessage.style.display = 'none'; // Hide the error message
-    addTodo(text); // Add the todo item
-    todoInput.value = ''; // Clear the input field
+  if (text !== '') {
+    todoInput.classList.remove('input-error');
+    errorMessage.style.display = 'none';
+    addTodo(text);
+    todoInput.value = '';
   } else {
-    console.log("Please enter a todo item"); // Provide feedback to the user
-    todoInput.classList.add('input-error'); // Add a class to highlight the error
-    errorMessage.style.display = 'block'; // Show the error message
+    console.log("Please enter a todo item");
+    todoInput.classList.add('input-error');
+    errorMessage.style.display = 'block';
   }
 });
 
-
-
-// Step 8: Function to removes all a todo by ID
-// Function to add event listener to the remove button - this function has an callback function that removes the todo item from the array.
+/**
+ * Makes the Remove button of a list item delete its todo.
+ * @param li - The list item that contains the buttons.
+ * @param id - The id of the todo that the list item shows.
+ */
 const addRemoveButtonListener = (li: HTMLLIElement, id: number): void => {
   const removeButton = li.querySelector('button');
-  removeButton?.addEventListener('click', () => removeTodo(id)); // We have an optional chaining operator here to avoid errors if the button is not found - for example, if the button is removed from the DOM.
+  removeButton?.addEventListener('click', () => removeTodo(id)); // Optional chaining avoids an error if the button is not found
 };
-/*
-example of explicit null checking - without optional chaining operator, but basically the same as above
-const addRemoveButtonListener = (li: HTMLLIElement, id: number): void => {
-  const removeButton = li.querySelector('button');
-  if (removeButton) {
-    removeButton.addEventListener('click', () => removeTodoById(id));
-  } else {
-    console.error(`Remove button not found for todo item with ID: ${id}`);
-  }
-};
-*/
 
-
-// Step 8: Function to remove a todo by ID
-// Function to remove a todo by ID: This function removes a todo from the array based on its ID.
+/**
+ * Removes the todo with the given id and redraws the list.
+ * @param id - The id of the todo to remove.
+ */
 export const removeTodo = (id: number): void => {
   todos = todos.filter(todo => todo.id !== id);
-  renderTodos(); // Re-render the updated list of todos
-}; 
+  renderTodos();
+};
 
-
-// Edit event listener - make button and add button to each todo
+/**
+ * Makes the Edit button of a list item open the edit prompt for its todo.
+ * @param li - The list item that contains the buttons.
+ * @param id - The id of the todo that the list item shows.
+ */
 const addEditButtonListener = (li: HTMLLIElement, id:number) => {
-  // make use of the editBtn id to edit the todo
   const editButton = li.querySelector('#editBtn')
   editButton?.addEventListener('click', () => editTodo(id)) 
 }
 
-// Edit function - prompt user to edit the todo : editTodo
+/**
+ * Asks the user for a new text with a prompt and updates the todo.
+ * A cancelled or empty prompt leaves the todo unchanged.
+ * @param id - The id of the todo to edit.
+ */
 const editTodo = (id:number) => {
   const todo = todos.find(todo => todo.id === id)
   if (todo) {
@@ -150,17 +179,128 @@ const editTodo = (id:number) => {
 }
 
 /**
- * color picker
+ * Switches a todo between completed and not completed, then redraws the list.
+ * @param id - The id of the todo to toggle.
  */
+export const toggleTodo = (id: number): void => {
+  const todo = todos.find(todo => todo.id === id);
+  if (todo) {
+    todo.completed = !todo.completed;
+    renderTodos();
+  }
+};
 
-// Function to change the background color of the page based on the color picker value
+/**
+ * Makes the Done/Undo button of a list item toggle its todo.
+ * @param li - The list item that contains the buttons.
+ * @param id - The id of the todo that the list item shows.
+ */
+const addToggleButtonListener = (li: HTMLLIElement, id: number): void => {
+  const toggleButton = li.querySelector('.toggle-btn');
+  toggleButton?.addEventListener('click', () => toggleTodo(id));
+};
+
+/**
+ * Removes every completed todo and redraws the list.
+ */
+export const clearCompleted = (): void => {
+  todos = todos.filter(todo => !todo.completed);
+  renderTodos();
+};
+
+/**
+ * Marks every todo as completed, or as not completed if they all already were.
+ * Does nothing on an empty list.
+ */
+export const toggleAll = (): void => {
+  const allCompleted = todos.length > 0 && todos.every(todo => todo.completed);
+  todos.forEach(todo => {
+    todo.completed = !allCompleted;
+  });
+  renderTodos();
+};
+
+toggleAllButton.addEventListener('click', toggleAll);
+clearCompletedButton.addEventListener('click', clearCompleted);
+
+/**
+ * Removes every todo, including the saved copy in localStorage.
+ */
+export const clearAll = (): void => {
+  todos = [];
+  renderTodos();
+};
+
+clearAllButton.addEventListener('click', clearAll);
+
+/**
+ * Downloads the current todos as a JSON file named todos.json.
+ */
+export const exportTodos = (): void => {
+  const blob = new Blob([JSON.stringify(todos, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'todos.json';
+  link.click();
+  URL.revokeObjectURL(url);
+};
+
+/**
+ * Turns the text of a JSON file into a list of todos.
+ * @param json - The JSON text to read.
+ * @returns The todos found in the text.
+ * @throws If the text is not valid JSON, or if it is not an array of valid todos.
+ */
+export const parseTodos = (json: string): Todo[] => {
+  const parsed: unknown = JSON.parse(json);
+  if (!Array.isArray(parsed) || !parsed.every(isTodo)) {
+    throw new Error('Invalid todos file');
+  }
+  return parsed;
+};
+
+/**
+ * Replaces the current list with the todos from a JSON file.
+ * An invalid file shows the import error and keeps the current list.
+ * @param file - The file chosen by the user.
+ */
+const importTodos = async (file: File): Promise<void> => {
+  try {
+    todos = parseTodos(await file.text());
+    importError.hidden = true;
+    renderTodos();
+  } catch {
+    importError.hidden = false;
+  }
+};
+
+exportButton.addEventListener('click', exportTodos);
+importButton.addEventListener('click', () => importFile.click());
+importFile.addEventListener('change', async () => {
+  const file = importFile.files?.[0];
+  if (file) {
+    await importTodos(file);
+  }
+  importFile.value = '';
+});
+
+// Color picker
+
+/**
+ * Changes the background color of the page.
+ * @param color - A CSS color value, such as the one given by the color picker.
+ */
 const changeBackgroundColor = (color: string): void => {
   document.body.style.backgroundColor = color;
 };
 
-// Function to initialize the color picker event listener
+/**
+ * Connects the color picker to the page background.
+ * Logs an error if the color picker is missing from the page.
+ */
 const initializeColorPicker = (): void => {
-  const colorPicker = document.getElementById('colorPicker') as HTMLInputElement; // encapsulate the color picker element to this function
+  const colorPicker = document.getElementById('colorPicker') as HTMLInputElement;
   if (colorPicker) {
     colorPicker.addEventListener('input', (event: Event) => {
       const target = event.target as HTMLInputElement;
@@ -171,92 +311,10 @@ const initializeColorPicker = (): void => {
   }
 };
 
-// Call the initializeColorPicker function when the DOM is fully loaded
+// Wait until the DOM is fully loaded before connecting the color picker
 document.addEventListener('DOMContentLoaded', () => {
   initializeColorPicker();
 });
 
-/** 
- * Kristian: 6th of September 2024, BDE
- * 
- * This is the list of optional features that can be added to the todo list application:
- * You must make at least one of these features to complete the project. The more the merrier.
- * In your submission video, please mention which feature you have implemented and demonstrate how it works. Go through the code and explain how you implemented the feature and how it works.
- * IF, you want to implement something not on list, you can do that as well.
-*/
-
-
-//Optional features list: 
-
-// Option 1: Add a button to toggle the completed status of a todo item
-// Function to toggle the completed status of a todo + 
-// Add a button to toggle the completed status of a todo item
-
-// Option 2: Add a button to clear all completed todos
-// Add a button to clear all completed todos
-// Function to clear all completed todos
-// Add a button to toggle all todos
-
-// Option 3: Add a button to toggle all todos
-// Edit a todo item and update it
-// Add an input field to edit a todo item
-// Save the updated todo item
-// Cancel the editing of a todo item
-// Add a button to cancel the editing of a todo item
-
-// Option 4: Add a button to filter todos by status
-// Add a button to filter todos by status
-// Function to filter todos by status
-
-// Option 5: Add a button to sort todos by status
-// Add a button to sort todos by status
-// Function to sort todos by status
-
-// Option 6: Due Date for Todos:
-// Add a date input field to set a due date for each todo item.
-// Display the due date next to each todo item.
-// Highlight overdue todos.
-// Priority Levels:
-
-// Option 7: Add a dropdown to set the priority level (e.g., Low, Medium, High) for each todo item.
-// Display the priority level next to each todo item.
-// Sort todos by priority.
-// Search Functionality:
-
-// Option 8: Add a search input field to filter todos based on the search query.
-// Display only the todos that match the search query.
-// Category Tags:
-
-// Option 9: Add a text input field to assign category tags to each todo item.
-// Display the tags next to each todo item.
-// Filter todos by category tags.
-// Progress Indicator:
-
-// Option 10: Add a progress bar to show the percentage of completed todos.
-// Update the progress bar as todos are marked as completed or incomplete.
-// Dark Mode Toggle:
-
-// Option 11: Add a button to toggle between light and dark modes.
-// Change the app's theme based on the selected mode.
-// Export/Import Todos:
-
-// Option 12: Add buttons to export the list of todos to a JSON file.
-// Add functionality to import todos from a JSON file.
-// Notifications:
-
-// Option 13: Add notifications to remind users of due todos.
-// Use the Notification API to show browser notifications.
-
-// Option 14: Local Storage:
-// Save the list of todos to local storage.
-// Retrieve the todos from local storage on page load.
-// Add a button to clear all todos from local storage.
-
-// Option 15: JSDOC Comments:
-// Add JSDoc comments to document the functions and interfaces in the code.
-// Link : https://jsdoc.app/
-
-// Optional 16: Handle Errors:
-// Add error handling for user input validation. Show red text or border for invalid input.
-// Display error messages for invalid input.
-
+// Initial render: must stay at the end, after every function it uses is defined
+renderTodos();
