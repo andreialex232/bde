@@ -63,6 +63,10 @@ const errorMessage = document.getElementById('error-message') as HTMLParagraphEl
 const toggleAllButton = document.getElementById('toggle-all') as HTMLButtonElement;
 const clearCompletedButton = document.getElementById('clear-completed') as HTMLButtonElement;
 const clearAllButton = document.getElementById('clear-all') as HTMLButtonElement;
+const exportButton = document.getElementById('export-todos') as HTMLButtonElement;
+const importButton = document.getElementById('import-todos') as HTMLButtonElement;
+const importFile = document.getElementById('import-file') as HTMLInputElement;
+const importError = document.getElementById('import-error') as HTMLParagraphElement;
 
 
 
@@ -214,6 +218,44 @@ export const clearAll = (): void => {
 };
 
 clearAllButton.addEventListener('click', clearAll);
+
+export const exportTodos = (): void => {
+  const blob = new Blob([JSON.stringify(todos, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'todos.json';
+  link.click();
+  URL.revokeObjectURL(url);
+};
+
+export const parseTodos = (json: string): Todo[] => {
+  const parsed: unknown = JSON.parse(json);
+  if (!Array.isArray(parsed) || !parsed.every(isTodo)) {
+    throw new Error('Invalid todos file');
+  }
+  return parsed;
+};
+
+const importTodos = async (file: File): Promise<void> => {
+  try {
+    todos = parseTodos(await file.text());
+    importError.hidden = true;
+    renderTodos();
+  } catch {
+    importError.hidden = false;
+  }
+};
+
+exportButton.addEventListener('click', exportTodos);
+importButton.addEventListener('click', () => importFile.click());
+importFile.addEventListener('change', async () => {
+  const file = importFile.files?.[0];
+  if (file) {
+    await importTodos(file);
+  }
+  importFile.value = '';
+});
 
 /**
  * color picker
