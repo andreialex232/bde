@@ -10,6 +10,7 @@ const html = `
   <ul class="todo-list" id="todo-list"></ul>
   <button id="toggle-all">Toggle all</button>
   <button id="clear-completed">Clear completed</button>
+  <button id="clear-all">Clear all</button>
   <input type="color" id="colorPicker" />
 `;
 
@@ -30,12 +31,17 @@ const click = (selector: string, index = 0): void => {
   document.querySelectorAll<HTMLElement>(selector)[index].click();
 };
 
-beforeEach(async () => {
-  let now = 1000;
-  vi.spyOn(Date, 'now').mockImplementation(() => now++);
+const loadApp = async (): Promise<void> => {
   document.body.innerHTML = html;
   vi.resetModules();
   app = await import('./main');
+};
+
+beforeEach(async () => {
+  let now = 1000;
+  vi.spyOn(Date, 'now').mockImplementation(() => now++);
+  localStorage.clear();
+  await loadApp();
 });
 
 describe('Todo app', () => {
@@ -92,5 +98,28 @@ describe('Todo app', () => {
     expect(app.todos.every(todo => todo.completed)).toBe(true);
     click('#toggle-all');
     expect(app.todos.every(todo => !todo.completed)).toBe(true);
+  });
+
+  it('saves todos and loads them again when the page reopens', async () => {
+    addViaForm('a');
+    addViaForm('b');
+    click('.toggle-btn', 1);
+    await loadApp();
+    expect(texts()).toEqual(['a', 'b']);
+    expect(app.todos.map(todo => todo.completed)).toEqual([false, true]);
+  });
+
+  it('ignores corrupted saved data', async () => {
+    localStorage.setItem('todos', 'not json');
+    await loadApp();
+    expect(texts()).toEqual([]);
+  });
+
+  it('clears all todos and the saved list', async () => {
+    addViaForm('a');
+    click('#clear-all');
+    expect(texts()).toEqual([]);
+    await loadApp();
+    expect(texts()).toEqual([]);
   });
 });

@@ -23,9 +23,36 @@ export interface Todo {
   completed: boolean;
 }
 
+const STORAGE_KEY = 'todos';
+
+const isTodo = (value: unknown): value is Todo =>
+  typeof value === 'object' &&
+  value !== null &&
+  typeof (value as Todo).id === 'number' &&
+  typeof (value as Todo).text === 'string' &&
+  typeof (value as Todo).completed === 'boolean';
+
+const loadTodos = (): Todo[] => {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    const parsed: unknown = saved ? JSON.parse(saved) : [];
+    return Array.isArray(parsed) ? parsed.filter(isTodo) : [];
+  } catch {
+    return [];
+  }
+};
+
 // Step 3: Initialize an empty array to store todos
 // Initialize an empty array: This array will store the list of todos.
-export let todos: Todo[] = [];
+export let todos: Todo[] = loadTodos();
+
+const saveTodos = (): void => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
+  } catch {
+    console.error('Could not save todos');
+  }
+};
 
 // Step 4: Get references to the HTML elements
 // Get references to the HTML elements: These references will be used to interact with the DOM
@@ -35,6 +62,7 @@ const todoList = document.getElementById('todo-list') as HTMLUListElement;   // 
 const errorMessage = document.getElementById('error-message') as HTMLParagraphElement; // exist in HTML file
 const toggleAllButton = document.getElementById('toggle-all') as HTMLButtonElement;
 const clearCompletedButton = document.getElementById('clear-completed') as HTMLButtonElement;
+const clearAllButton = document.getElementById('clear-all') as HTMLButtonElement;
 
 
 
@@ -57,6 +85,7 @@ export const addTodo = (text: string): void => {
 // Step 6: Function to render the list of todos
 // Function to render the list of todos: This function updates the DOM to display the current list of todos.
 const renderTodos = (): void => { // void because no return - what we are doing is updating the DOM
+  saveTodos();
   // Clear the current list
   todoList.innerHTML = '';
 
@@ -82,13 +111,6 @@ const renderTodos = (): void => { // void because no return - what we are doing 
     todoList.appendChild(li); // Append the list item to the ul element
   });
 };
-
-// Step 6.1: Function to render the list of todos
-// Initial render
-renderTodos(); // Call the renderTodos function to display the initial list of todos : Should be at the end of the code to ensure that the function is defined before it is called.
-// The initial render is important to display the list of todos when the page is first loaded. Without it, the list would be empty until a new todo is added.
-// Move it when code is complete ( refactoring ) 
-
 
 // Step 7: Event listener for the form submission
 // Handles the form submission: validates the input, adds the new todo and clears the input field.
@@ -186,6 +208,13 @@ export const toggleAll = (): void => {
 toggleAllButton.addEventListener('click', toggleAll);
 clearCompletedButton.addEventListener('click', clearCompleted);
 
+export const clearAll = (): void => {
+  todos = [];
+  renderTodos();
+};
+
+clearAllButton.addEventListener('click', clearAll);
+
 /**
  * color picker
  */
@@ -212,6 +241,8 @@ const initializeColorPicker = (): void => {
 document.addEventListener('DOMContentLoaded', () => {
   initializeColorPicker();
 });
+
+renderTodos();
 
 /** 
  * Kristian: 6th of September 2024, BDE
